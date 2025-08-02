@@ -142,7 +142,7 @@ async function startServer() {
     console.log('✅ Connected to MongoDB');
     
     // Seed users after database connection
-    await seedUsers();
+    // await seedUsers();
     
     app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
