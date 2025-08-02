@@ -87,6 +87,7 @@ router.get('/me', auth, async (req, res) => {
 // Get all users (for the fixed 4 users)
 router.get('/users', async (req, res) => {
   try {
+    console.log('Getting users');
     const users = await User.find({ isActive: true })
       .select('-password')
       .sort({ firstName: 1 });
