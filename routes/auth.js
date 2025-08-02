@@ -85,7 +85,7 @@ router.get('/me', auth, async (req, res) => {
 });
 
 // Get all users (for the fixed 4 users)
-router.get('/users', auth, async (req, res) => {
+router.get('/users', async (req, res) => {
   try {
     const users = await User.find({ isActive: true })
       .select('-password')

@@ -1,6 +1,6 @@
 const axios = require('axios');
 
-const BASE_URL = 'http://localhost:3000/api';
+const BASE_URL = 'http://localhost:5000/api';
 let authToken = '';
 
 // Test user credentials
@@ -103,7 +103,7 @@ async function testAPI() {
 // Check if server is running
 async function checkServer() {
   try {
-    await axios.get('http://localhost:3000/health');
+    await axios.get('http://localhost:5000/health');
     return true;
   } catch (error) {
     return false;

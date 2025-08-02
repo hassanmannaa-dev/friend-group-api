@@ -12,7 +12,7 @@ const router = express.Router();
 // Create a blog post
 router.post('/blog', auth, [
   body('caption').trim().notEmpty().withMessage('Caption is required'),
-  body('content').trim().notEmpty().withMessage('Content is required')
+  body('content').optional().trim()
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -30,7 +30,7 @@ router.post('/blog', auth, [
       author: req.user._id,
       type: 'blog',
       caption,
-      content
+      content: content || ''
     });
 
     await post.save();
@@ -197,6 +197,57 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
+// Get posts by type (image, video, blog)
+router.get('/type/:type', auth, async (req, res) => {
+  try {
+    const { type } = req.params;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    // Validate type parameter
+    const validTypes = ['image', 'video', 'blog'];
+    if (!validTypes.includes(type)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid post type. Must be one of: image, video, blog'
+      });
+    }
+
+    const posts = await Post.find({ 
+      type: type,
+      isActive: true 
+    })
+      .populate('author', 'firstName lastName avatarUrl')
+      .populate('comments')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const total = await Post.countDocuments({ 
+      type: type,
+      isActive: true 
+    });
+
+    res.json({
+      success: true,
+      posts,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Get posts by type error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
 // Get single post by ID
 router.get('/:postId', auth, async (req, res) => {
   try {
@@ -243,12 +294,15 @@ router.post('/:postId/like', auth, async (req, res) => {
     }
 
     await post.toggleLike(req.user._id);
-    await post.populate('author', 'firstName lastName avatarUrl');
+    
+    // Fetch the updated post with populated author
+    const updatedPost = await Post.findById(req.params.postId)
+      .populate('author', 'firstName lastName avatarUrl');
 
     res.json({
       success: true,
-      message: post.hasUserLiked(req.user._id) ? 'Post liked' : 'Post unliked',
-      post
+      message: updatedPost.hasUserLiked(req.user._id) ? 'Post liked' : 'Post unliked',
+      post: updatedPost
     });
   } catch (error) {
     console.error('Like post error:', error);

@@ -21,7 +21,7 @@ const postSchema = new mongoose.Schema({
     // For blog posts, this will contain the text content
     // For images/videos, this will contain the media URL
     type: String,
-    required: true
+    required: false
   },
   mediaUrl: {
     // For images and videos, this will contain the Supabase URL
