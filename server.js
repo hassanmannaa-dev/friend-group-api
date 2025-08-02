@@ -32,7 +32,7 @@ app.use(helmet());
 // CORS
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? ['https://emaur-group.vercel.app/'] 
+    ? ['https://emaur-group.vercel.app', 'https://emaur-group-q0cu4aw4d-hassan-mannaas-projects.vercel.app'] 
     : ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002'],
   credentials: true
 }));
