@@ -12,7 +12,8 @@ const router = express.Router();
 // Create a blog post
 router.post('/blog', auth, [
   body('caption').trim().notEmpty().withMessage('Caption is required'),
-  body('content').optional().trim()
+  body('content').optional().trim(),
+  body('tags').optional()
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -26,11 +27,38 @@ router.post('/blog', auth, [
 
     const { caption, content } = req.body;
 
+    // Normalize tags: accept array, comma-separated string, or JSON string
+    let tags = [];
+    try {
+      const rawTags = req.body.tags;
+      if (typeof rawTags === 'string') {
+        // Attempt JSON parse first
+        try {
+          const parsed = JSON.parse(rawTags);
+          if (Array.isArray(parsed)) {
+            tags = parsed;
+          } else if (typeof parsed === 'string') {
+            tags = parsed.split(',');
+          } else {
+            tags = [String(parsed)];
+          }
+        } catch (_) {
+          // Fallback: comma-separated string
+          tags = rawTags.split(',');
+        }
+      } else if (Array.isArray(rawTags)) {
+        tags = rawTags;
+      }
+    } catch (_) {
+      tags = [];
+    }
+
     const post = new Post({
       author: req.user._id,
       type: 'blog',
       caption,
-      content: content || ''
+      content: content || '',
+      tags
     });
 
     await post.save();
@@ -64,6 +92,30 @@ router.post('/image', auth, upload.single('image'), async (req, res) => {
 
     const { caption } = req.body;
 
+    // Normalize tags similar to blog
+    let tags = [];
+    try {
+      const rawTags = req.body.tags;
+      if (typeof rawTags === 'string') {
+        try {
+          const parsed = JSON.parse(rawTags);
+          if (Array.isArray(parsed)) {
+            tags = parsed;
+          } else if (typeof parsed === 'string') {
+            tags = parsed.split(',');
+          } else {
+            tags = [String(parsed)];
+          }
+        } catch (_) {
+          tags = rawTags.split(',');
+        }
+      } else if (Array.isArray(rawTags)) {
+        tags = rawTags;
+      }
+    } catch (_) {
+      tags = [];
+    }
+
     if (!caption) {
       return res.status(400).json({
         success: false,
@@ -87,7 +139,8 @@ router.post('/image', auth, upload.single('image'), async (req, res) => {
       type: 'image',
       caption,
       content: uploadResult.url,
-      mediaUrl: uploadResult.url
+      mediaUrl: uploadResult.url,
+      tags
     });
 
     await post.save();
@@ -119,6 +172,30 @@ router.post('/video', auth, upload.single('video'), async (req, res) => {
 
     const { caption } = req.body;
 
+    // Normalize tags similar to blog
+    let tags = [];
+    try {
+      const rawTags = req.body.tags;
+      if (typeof rawTags === 'string') {
+        try {
+          const parsed = JSON.parse(rawTags);
+          if (Array.isArray(parsed)) {
+            tags = parsed;
+          } else if (typeof parsed === 'string') {
+            tags = parsed.split(',');
+          } else {
+            tags = [String(parsed)];
+          }
+        } catch (_) {
+          tags = rawTags.split(',');
+        }
+      } else if (Array.isArray(rawTags)) {
+        tags = rawTags;
+      }
+    } catch (_) {
+      tags = [];
+    }
+
     if (!caption) {
       return res.status(400).json({
         success: false,
@@ -142,7 +219,8 @@ router.post('/video', auth, upload.single('video'), async (req, res) => {
       type: 'video',
       caption,
       content: uploadResult.url,
-      mediaUrl: uploadResult.url
+      mediaUrl: uploadResult.url,
+      tags
     });
 
     await post.save();
@@ -245,6 +323,44 @@ router.get('/type/:type', auth, async (req, res) => {
       success: false,
       message: 'Internal server error'
     });
+  }
+});
+
+// Get posts by tag with pagination
+router.get('/tag/:tag', auth, async (req, res) => {
+  try {
+    const { tag } = req.params;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const normalizedTag = String(tag).trim().toLowerCase();
+    if (!normalizedTag) {
+      return res.status(400).json({ success: false, message: 'Tag is required' });
+    }
+
+    const posts = await Post.find({ tags: normalizedTag, isActive: true })
+      .populate('author', 'firstName lastName avatarUrl')
+      .populate('comments')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const total = await Post.countDocuments({ tags: normalizedTag, isActive: true });
+
+    res.json({
+      success: true,
+      posts,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Get posts by tag error:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
 
