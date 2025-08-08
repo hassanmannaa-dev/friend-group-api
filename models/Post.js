@@ -18,10 +18,21 @@ const postSchema = new mongoose.Schema({
     maxlength: 1000
   },
   content: {
-    // For blog posts, this will contain the text content
-    // For images/videos, this will contain the media URL
     type: String,
     required: false
+  },
+  tags: {
+    type: [String],
+    default: [],
+    set: function(raw) {
+      if (!raw) return [];
+      const toArray = Array.isArray(raw) ? raw : [raw];
+      const normalized = toArray
+        .map(t => (t == null ? '' : String(t)))
+        .map(t => t.trim().toLowerCase())
+        .filter(Boolean);
+      return Array.from(new Set(normalized));
+    }
   },
   mediaUrl: {
     // For images and videos, this will contain the Supabase URL
@@ -45,6 +56,9 @@ const postSchema = new mongoose.Schema({
 }, {
   timestamps: true
 });
+
+// Index tags for efficient lookup by tag
+postSchema.index({ tags: 1 });
 
 // Virtual for like count
 postSchema.virtual('likeCount').get(function() {
